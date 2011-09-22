@@ -21,6 +21,7 @@ def getValue(t, v):
 			1: t[0] + " = " + v[0] + "(" + t[0] + ");",
 			2: t[0] + " = " + v[0] + "(" + t[0] + ", " + t[1] + ");",
 			3: t[0] + " = " + t[1] + ";",
+			4: v[0] + "(" + t[0] + ", " + t[1] + ");",
 		}[v[1]]
 	else:
 		raise
@@ -69,6 +70,26 @@ def intrin(t, v, i = 0, addResult = True):
 		return t[0] + " = " + str
 	else:
 		return str
+
+def comp2str(i):
+	if i == 0:
+		return "eq"		#xmm1 == xmm2
+	elif i == 1:
+		return "lt"		#xmm1 < xmm2
+	elif i == 2:
+		return "le"		#xmm1 <= xmm2
+	elif i == 3:
+		return "unord"	#xmm1 ? xmm2
+	elif i == 4:
+		return "neq"	#xmm1 != xmm2
+	elif i == 5:
+		return "nlt"	#xmm1 >= xmm2
+	elif i == 6:
+		return "nle"	#xmm1 > xmm2
+	elif i == 7:
+		return "ord"	#!(xmm1 ? xmm2)
+	else:
+		throw
 	
 ops = {		
 	'mov':		lambda t: t[0] + " = " + t[1] + ";",
@@ -76,29 +97,30 @@ ops = {
 	'inc':		lambda t: "(" + t[0] + ")++;",
 	'dec':		lambda t: "(" + t[0] + ")--;",
 	'neg':		lambda t: t[0] + " = -" + t[0] + ";",
-	'add':		lambda t: t[0] + " -= " + t[1] + ";",
-	'sub':		lambda t: t[0] + " += " + t[1] + ";",
+	'add':		lambda t: t[0] + " += " + t[1] + ";",
+	'sub':		lambda t: t[0] + " -= " + t[1] + ";",
 	'and':		lambda t: t[0] + " &= " + t[1] + ";",
 	'or':		lambda t: t[0] + " |= " + t[1] + ";",
 	'xor':		lambda t: t[0] + " ^= " + t[1] + ";" if t[0] != t[1] else t[0] + " = 0;",
 	'shr':		lambda t: t[0] + " >>= " + t[1] + ";",
 	'shl':		lambda t: t[0] + " <<= " + t[1] + ";",
 	'lea':		lambda t: t[0] + " = " + t[1] + ";",
+	'loop':		lambda t: "ecx--;\n} while (ecx > 0); // start at " + t[0] + ":",
 
 	#sse (http://msdn.microsoft.com/en-us/library/t467de55.aspx)
-	'movss':	lambda t: sseIntrin(t, ("_mm_load_ss",0), ("_mm_store_ss",1), ("_mm_move_ss",2), None),
-	'movaps':	lambda t: sseIntrin(t, ("_mm_load_ps",0), ("_mm_store_ps",0), ("",3), None),
-	'movups':	lambda t: sseIntrin(t, ("_mm_loadu_ps",0), ("_mm_storeu_ps",0), None, None),
+	'movss':	lambda t: sseIntrin(t, ("_mm_load_ss",0), ("_mm_store_ss",4), ("_mm_move_ss",2), None),
+	'movaps':	lambda t: sseIntrin(t, ("_mm_load_ps",0), ("_mm_store_ps",4), ("",3), None),
+	'movups':	lambda t: sseIntrin(t, ("_mm_loadu_ps",0), ("_mm_storeu_ps",4), None, None),
 
-	'shufps':	lambda t: intrin(t, "_mm_shuffle_ps"),
-	'pshufw':	lambda t: intrin(t, "_mm_shuffle_pi16"),
+	'shufps':	lambda t: intrin(t, "_mm_shuffle_ps", 2),
+	'pshufw':	lambda t: intrin(t, "_mm_shuffle_pi16", 1),
 	'unpckhps':	lambda t: intrin(t, "_mm_unpackhi_ps"),
 	'unpcklps':	lambda t: intrin(t, "_mm_unpacklo_ps"),
 	'movhps':	lambda t: sseIntrin(t, ("_mm_loadh_pi",0), ("_mm_storeh_pi",0), None, None),
 	'movhlps':	lambda t: intrin(t, "_mm_movehl_ps"),
 	'movlhps':	lambda t: intrin(t, "_mm_movelh_ps"),
 	'movlps':	lambda t: sseIntrin(t, ("_mm_loadl_pi",0), ("_mm_storel_pi",0), None, None),
-	'movmskps':	lambda t: intrin(t, "_mm_movemask_ps"),
+	'movmskps':	lambda t: intrin(t, "_mm_movemask_ps", 4),
 	'stmxcsr':	lambda t: intrin(t, "_mm_getcsr"),
 	'ldmxcsr':	lambda t: intrin(t, "_mm_setcsr"),
 	
@@ -115,12 +137,12 @@ ops = {
 	'mulps':	lambda t: intrin(t, "_mm_mul_ps"),
 	'divss':	lambda t: intrin(t, "_mm_div_ss"),
 	'divps':	lambda t: intrin(t, "_mm_div_ps"),
-	'sqrtss':	lambda t: intrin(t, "_mm_sqrt_ss"),
-	'sqrtps':	lambda t: intrin(t, "_mm_sqrt_ps"),
-	'rcpss':	lambda t: intrin(t, "_mm_rcp_ss"),
-	'rcpps':	lambda t: intrin(t, "_mm_rcp_ps"),
-	'rsqrtss':	lambda t: intrin(t, "_mm_rsqrt_ss"),
-	'rsqrtps':	lambda t: intrin(t, "_mm_rsqrt_ps"),
+	'sqrtss':	lambda t: intrin(t, "_mm_sqrt_ss", 4),
+	'sqrtps':	lambda t: intrin(t, "_mm_sqrt_ps", 4),
+	'rcpss':	lambda t: intrin(t, "_mm_rcp_ss", 4),
+	'rcpps':	lambda t: intrin(t, "_mm_rcp_ps", 4),
+	'rsqrtss':	lambda t: intrin(t, "_mm_rsqrt_ss", 4),
+	'rsqrtps':	lambda t: intrin(t, "_mm_rsqrt_ps", 4),
 	'minss':	lambda t: intrin(t, "_mm_min_ss"),
 	'minps':	lambda t: intrin(t, "_mm_min_ps"),
 	'maxss':	lambda t: intrin(t, "_mm_max_ss"),
@@ -130,7 +152,9 @@ ops = {
 	'andnps':	lambda t: intrin(t, "_mm_andnot_ps"),
 	'orps':		lambda t: intrin(t, "_mm_or_ps"),
 	'xorps':	lambda t: intrin(t, "_mm_xor_ps") if t[0] != t[1] else intrin(t, "_mm_setzero_ps", 5),
-
+	
+	'cmpps':	lambda t: intrin(t, "_mm_cmp" + comp2str(int(t[2])) + "_ps"),
+	'cmpss':	lambda t: intrin(t, "_mm_cmp" + comp2str(int(t[2])) + "_ss"),
 	'cmpeqss':	lambda t: intrin(t, "_mm_cmpeq_ss"),
 	'cmpeqps':	lambda t: intrin(t, "_mm_cmpeq_ps"),
 	'cmpltss':	lambda t: intrin(t, "_mm_cmplt_ss"),
@@ -166,15 +190,12 @@ ops = {
 	'cvttps2pi':	lambda t: intrin(t, "_mm_cvtpi32_pd"),
 
 	#sse2 - double (http://msdn.microsoft.com/en-us/library/kcwz153a.aspx)
-	'movsd':	lambda t: sseIntrin(t, ("_mm_load_sd",0), ("_mm_store_sd",1), ("_mm_move_sd",2), None),
-	'movapd':	lambda t: sseIntrin(t, ("_mm_load_pd",0), ("_mm_store_pd",0), ("",3), None),
-	'movupd':	lambda t: sseIntrin(t, ("_mm_loadu_pd",0), ("_mm_storeu_pd",0), None, None),
+	'movsd':	lambda t: sseIntrin(t, ("_mm_load_sd",0), ("_mm_store_sd",4), ("_mm_move_sd",2), None),
+	'movapd':	lambda t: sseIntrin(t, ("_mm_load_pd",0), ("_mm_store_pd",4), ("",3), None),
+	'movupd':	lambda t: sseIntrin(t, ("_mm_loadu_pd",0), ("_mm_storeu_pd",4), None, None),
 	
-	'movapd':	lambda t: sseIntrin(t, ("_mm_load_pd",0), ("_mm_store_pd",1), ("",3), None),
-	'movupd':	lambda t: sseIntrin(t, ("_mm_loadu_pd",0), ("_mm_storeu_pd",1), None, None),
-	'movsd':	lambda t: sseIntrin(t, ("_mm_load_sd",0), ("_mm_store_sd",1), ("_mm_move_sd",3), None),
-	'movhpd':	lambda t: sseIntrin(t, ("_mm_loadh_pd",0), ("_mm_storeh_pd",1), None, None),
-	'movlpd':	lambda t: sseIntrin(t, ("_mm_loadl_pd",0), ("_mm_storel_pd ",1), None, None),
+	'movhpd':	lambda t: sseIntrin(t, ("_mm_loadh_pd",0), ("_mm_storeh_pd",4), None, None),
+	'movlpd':	lambda t: sseIntrin(t, ("_mm_loadl_pd",0), ("_mm_storel_pd ",4), None, None),
 
 	'movlpd':	lambda t: intrin(t, "_mm_stream_pd", 0, False),
 	
@@ -188,8 +209,8 @@ ops = {
 	'minpd':	lambda t: intrin(t, "_mm_min_pd"),
 	'mulsd':	lambda t: intrin(t, "_mm_mul_sd"),
 	'mulpd':	lambda t: intrin(t, "_mm_mul_pd"),
-	'sqrtsd':	lambda t: intrin(t, "_mm_sqrt_sd"),
-	'sqrtpd':	lambda t: intrin(t, "_mm_sqrt_pd"),
+	'sqrtsd':	lambda t: intrin(t, "_mm_sqrt_sd", 4),
+	'sqrtpd':	lambda t: intrin(t, "_mm_sqrt_pd", 4),
 	'subsd':	lambda t: intrin(t, "_mm_sub_sd"),
 	'subpd':	lambda t: intrin(t, "_mm_sub_pd"),
 
@@ -197,7 +218,9 @@ ops = {
 	'andnpd':	lambda t: intrin(t, "_mm_andnot_pd"),
 	'orpd':		lambda t: intrin(t, "_mm_or_pd"),
 	'xorpd':	lambda t: intrin(t, "_mm_xor_pd") if t[0] != t[1] else intrin(t, "_mm_setzero_pd", 5),
-
+	
+	'cmppd':	lambda t: intrin(t, "_mm_cmp" + comp2str(int(t[2])) + "_pd"),
+	'cmpsd':	lambda t: intrin(t, "_mm_cmp" + comp2str(int(t[2])) + "_sd"),
 	'cmpeqsd':	lambda t: intrin(t, "_mm_cmpeq_sd"),
 	'cmpeqpd':	lambda t: intrin(t, "_mm_cmpeq_pd"),
 	'cmpltsd':	lambda t: intrin(t, "_mm_cmplt_sd"),
@@ -226,8 +249,8 @@ ops = {
 	'ucomisd':	lambda t: intrin(t, "_mm_ucomi??_sd"),	
 
 	#sse2 - int (http://msdn.microsoft.com/en-us/library/kcwz153a.aspx)
-	'movdqa':	lambda t: sseIntrin(t, ("_mm_load_si128",0), ("_mm_store_si128",1), ("",3), None),
-	'movdqu':	lambda t: sseIntrin(t, ("_mm_loadu_si128",0), ("_mm_storeu_si128",1), None, None),
+	'movdqa':	lambda t: sseIntrin(t, ("_mm_load_si128",0), ("_mm_store_si128",4), ("",3), None),
+	'movdqu':	lambda t: sseIntrin(t, ("_mm_loadu_si128",0), ("_mm_storeu_si128",4), None, None),
 	'movq':		lambda t: sseIntrin(t, ("_mm_loadl_epi64",4), None, ("_mm_move_epi64",0), None),
 	'maskmovdqu':	lambda t: intrin(t, "_mm_maskmoveu_si128", 2, False),
 
@@ -295,7 +318,7 @@ ops = {
 	'psrlq':	lambda t: sseIntrin(t, ("_mm_srli_epi64",0), None, ("_mm_srl_epi64",0), None),
 
 	'movd':		lambda t: mmxIntrin(t, ("_mm_cvtsi32_si128",0), ("_mm_cvtsi128_si32",0), None, None),
-
+	
 	'pcmpeqb':	lambda t: intrin(t, "_mm_cmpeq_epi8"),
 	'pcmpeqw':	lambda t: intrin(t, "_mm_cmpeq_epi16"),
 	'pcmpeqd':	lambda t: intrin(t, "_mm_cmpeq_epi32"),
@@ -319,7 +342,7 @@ ops = {
 	'punpcklqdq':lambda t: intrin(t, "_mm_unpacklo_epi64"),
 	'pextrw':	lambda t: intrin(t, "_mm_extract_epi16", 3),
 	'pinsrw':	lambda t: intrin(t, "_mm_insert_epi16", 3),
-	'pmovmskb':	lambda t: intrin(t, "_mm_movemask_epi8"),
+	'pmovmskb':	lambda t: intrin(t, "_mm_movemask_epi8", 4),
 	'pshufd':	lambda t: intrin(t, "_mm_shuffle_epi32", 1),
 	'pshufhw':	lambda t: intrin(t, "_mm_shufflehi_epi16", 1),
 	'pshuflw':	lambda t: intrin(t, "_mm_shufflelo_epi16", 1),
@@ -362,8 +385,8 @@ def op2intrin(op,params):
 	if len(op) > 0:
 		if op in ops:
 			return ops[op](t) + "\t" + comment
-		elif not ":" in op:
-			return "// " + op + " " + ", ".join(t) + comment
+		elif not (":" in op or op.startswith("#") or op.startswith("//")):
+			return "// unsupported: " + op + " " + ", ".join(t) + comment
 		else:
 			return op + " " + comment
 	else:
