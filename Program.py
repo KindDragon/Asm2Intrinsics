@@ -108,7 +108,7 @@ ops = {
 	'inc':			(InstSet.x86, lambda t: t[0] + "++;"),
 	'dec':			(InstSet.x86, lambda t: t[0] + "--;"),
 	'imul':			(InstSet.x86, lambda t: t[0] + " *= " + t[1] + ";"),
-	'idiv':			(InstSet.x86, lambda t: t[0] + " *= " + t[1] + ";"),
+	'idiv':			(InstSet.x86, lambda t: t[0] + " /= " + t[1] + ";"),
 	'neg':			(InstSet.x86, lambda t: t[0] + " = -" + t[0] + ";"),
 	'add':			(InstSet.x86, lambda t: t[0] + " += " + t[1] + ";"),
 	'sub':			(InstSet.x86, lambda t: t[0] + " -= " + t[1] + ";"),
