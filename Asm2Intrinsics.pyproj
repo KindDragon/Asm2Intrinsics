@@ -27,4 +27,7 @@
   <ItemGroup>
     <Compile Include="Program.py" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="test.asm" />
+  </ItemGroup>
 </Project>
