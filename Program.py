@@ -74,21 +74,21 @@ def intrin(t, v, i = 0, addResult = True):
 
 def comp2str(i):
 	if i == 0:
-		return "eq"		#xmm1 == xmm2
+		return "eq"		#xmm1 == xmm2	je, jz
 	elif i == 1:
-		return "lt"		#xmm1 < xmm2
+		return "lt"		#xmm1 < xmm2	jb, jnae, jc
 	elif i == 2:
-		return "le"		#xmm1 <= xmm2
+		return "le"		#xmm1 <= xmm2	jbe, jna
 	elif i == 3:
-		return "unord"	#xmm1 ? xmm2
+		return "unord"	#xmm1 ? xmm2	jp, jpe
 	elif i == 4:
-		return "neq"	#xmm1 != xmm2
+		return "neq"	#xmm1 != xmm2	jne, jnz
 	elif i == 5:
-		return "nlt"	#xmm1 >= xmm2
+		return "nlt"	#xmm1 >= xmm2	jnb, jae, jnc
 	elif i == 6:
-		return "nle"	#xmm1 > xmm2
+		return "nle"	#xmm1 > xmm2	ja, jnbe
 	elif i == 7:
-		return "ord"	#!(xmm1 ? xmm2)
+		return "ord"	#!(xmm1 ? xmm2)	jnp, jpo
 	else:
 		throw
 
@@ -101,6 +101,16 @@ class InstSet:
 	SSE3=5
 	SSSE3=6
 	SSE4=7
+	SSE4A=8
+	SSE41=9
+	SSE42=10
+
+rounding = {
+	0 : "round",
+	1 : "floor",
+	2 : "ceil",
+	3 : "truncate"
+}
 
 ops = {		
 	'mov':			(InstSet.x86, lambda t: t[0] + " = " + t[1] + ";"),
@@ -174,20 +184,20 @@ ops = {
 	'cmpltps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmplt_ps")),
 	'cmpless':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmple_ss")),
 	'cmpleps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmple_ps")),
-	'cmpltss':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpgt_ss")),
-	'cmpltps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpgt_ps")),
-	'cmpless':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpge_ss")),
-	'cmpleps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpge_ps")),
+	'cmpltssr':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpgt_ss")),
+	'cmpltpsr':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpgt_ps")),
+	'cmplessr':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpge_ss")),
+	'cmplepsr':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpge_ps")),
 	'cmpneqss':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpneq_ss")),
 	'cmpneqps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpneq_ps")),
 	'cmpnltss':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpnlt_ss")),
 	'cmpnltps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpnlt_ps")),
 	'cmpnless':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpnle_ss")),
 	'cmpnleps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmple_ps")),
-	'cmpnltss':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpngt_ss")),
-	'cmpnltps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpngt_ps")),
-	'cmpnless':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpnge_ss")),
-	'cmpnleps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpnge_ps")),
+	'cmpnltssr':	(InstSet.SSE, lambda t: intrin(t, "_mm_cmpngt_ss")),
+	'cmpnltpsr':	(InstSet.SSE, lambda t: intrin(t, "_mm_cmpngt_ps")),
+	'cmpnlessr':	(InstSet.SSE, lambda t: intrin(t, "_mm_cmpnge_ss")),
+	'cmpnlepsr':	(InstSet.SSE, lambda t: intrin(t, "_mm_cmpnge_ps")),
 	'cmpordss':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpord_ss")),
 	'cmpordps':		(InstSet.SSE, lambda t: intrin(t, "_mm_cmpord_ps")),
 	'cmpunordss':	(InstSet.SSE, lambda t: intrin(t, "_mm_cmpunord_ss")),
@@ -353,8 +363,8 @@ ops = {
 	'punpcklwd':	(InstSet.SSE2I, lambda t: intrin(t, "_mm_unpacklo_epi16")),
 	'punpckldq':	(InstSet.SSE2I, lambda t: intrin(t, "_mm_unpacklo_epi32")),
 	'punpcklqdq':	(InstSet.SSE2I, lambda t: intrin(t, "_mm_unpacklo_epi64")),
-	'pextrw':		(InstSet.SSE2I, lambda t: intrin(t, "_mm_extract_epi16", 3)),
-	'pinsrw':		(InstSet.SSE2I, lambda t: intrin(t, "_mm_insert_epi16", 3)),
+	'pextrw':		(InstSet.SSE2I, lambda t: intrin(t, "_mm_extract_epi16", 1)),
+	'pinsrw':		(InstSet.SSE2I, lambda t: intrin(t, "_mm_insert_epi16", 2)),
 	'pmovmskb':		(InstSet.SSE2I, lambda t: intrin(t, "_mm_movemask_epi8", 4)),
 	'pshufd':		(InstSet.SSE2I, lambda t: intrin(t, "_mm_shuffle_epi32", 1)),
 	'pshufhw':		(InstSet.SSE2I, lambda t: intrin(t, "_mm_shufflehi_epi16", 1)),
@@ -375,14 +385,88 @@ ops = {
 	'mwait':		(InstSet.SSE3, lambda t: intrin(t, "_mm_mwait")),
 
 	#ssse3 (http://msdn.microsoft.com/en-us/library/bb892952.aspx)
+	'pabsb':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_abs_epi8")),
+	'pabsw':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_abs_epi16")),
+	'pabsd':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_abs_epi32")),
+	'palignr':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_alignr_epi8")),
+	'phaddsw':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_hadds_epi16")),
+	'phaddw':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_hadd_epi16")),
+	'phaddd':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_hadd_epi32")),
+	'phsubsw':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_hsubs_epi16")),
+	'phsubw':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_hsub_epi16")),
+	'phsubd':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_hsub_epi32")),
+	'pmaddubsw':	(InstSet.SSSE3, lambda t: intrin(t, "_mm_maddubs_epi16")),
+	'pmulhrsw':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_mulhrs_epi16")),
+	'pshufb':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_shuffle_epi8")),
+	'psignb':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_sign_epi8")),
+	'psignw':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_sign_epi16")),
+	'psignd':		(InstSet.SSSE3, lambda t: intrin(t, "_mm_sign_epi32")),
+	
 	#sse4 (http://msdn.microsoft.com/en-us/library/bb892950.aspx)
 	'pinsrd':		(InstSet.SSE4, lambda t: intrin(t, "_mm_insert_epi32", 3)),
 	'blendvpb':		(InstSet.SSE4, lambda t: intrin(t, "_mm_blendv_epi8")),
 	'blendvpd':		(InstSet.SSE4, lambda t: intrin(t, "_mm_blendv_pd")),
 	'ptest':		(InstSet.SSE4, lambda t: intrin(t, "_mm_testc_si128")),
+	
+	#sse4a
+	'extrq':		(InstSet.SSE4A, lambda t: intrin(t, "_mm_extract_si64")), 
+	'insertq':		(InstSet.SSE4A, lambda t: intrin(t, "_mm_insert_si64")),
+	'movntsd':		(InstSet.SSE4A, lambda t: intrin(t, "_mm_stream_sd")),
+	'movntss':		(InstSet.SSE4A, lambda t: intrin(t, "_mm_stream_ss")),
+	
+	#sse4.1
+	'dppd':			(InstSet.SSE41, lambda t: intrin(t, "_mm_dp_pd")),
+	'dpps':			(InstSet.SSE41, lambda t: intrin(t, "_mm_dp_ps")),
+	'extractps':	(InstSet.SSE41, lambda t: intrin(t, "_mm_extract_ps")),
+	'insertps':		(InstSet.SSE41, lambda t: intrin(t, "_mm_insert_ps")),
+	'movntdqa':		(InstSet.SSE41, lambda t: intrin(t, "_mm_stream_load_si128")),
+	'mpsadbw':		(InstSet.SSE41, lambda t: intrin(t, "_mm_mpsadbw_epu8")),
+	'packusdw':		(InstSet.SSE41, lambda t: intrin(t, "_mm_packus_epi32")),
+	'pblendw':		(InstSet.SSE41, lambda t: intrin(t, "_mm_blend_epi16")),
+	'blendpd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_blend_pd")),
+	'blendps':		(InstSet.SSE41, lambda t: intrin(t, "_mm_blend_ps")),
+	'pblendvb':		(InstSet.SSE41, lambda t: intrin(t, "_mm_blendv_epi8")),
+	'blendvpd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_blendv_pd")),
+	'blendvps':		(InstSet.SSE41, lambda t: intrin(t, "_mm_blendv_ps")),
+	'pcmpeqq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cmpeq_epi64")),
+	'pextrb':		(InstSet.SSE41, lambda t: intrin(t, "_mm_extract_epi8")),
+	'pextrd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_extract_epi32")),
+	'pextrq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_extract_epi64")),
+	'pinsrb':		(InstSet.SSE41, lambda t: intrin(t, "_mm_insert_epi8")),
+	'pinsrd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_insert_epi32")),
+	'pinsrq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_insert_epi64")),
+	'pmaxsb':		(InstSet.SSE41, lambda t: intrin(t, "_mm_max_epi8")),
+	'pmaxsd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_max_epi32")),
+	'pmaxuw':		(InstSet.SSE41, lambda t: intrin(t, "_mm_max_epu16")),
+	'pmaxud':		(InstSet.SSE41, lambda t: intrin(t, "_mm_max_epu32")),
+	'pminsb':		(InstSet.SSE41, lambda t: intrin(t, "_mm_min_epi8")),
+	'pminsd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_min_epi32")),
+	'pminuw':		(InstSet.SSE41, lambda t: intrin(t, "_mm_min_epu16")),
+	'pminud':		(InstSet.SSE41, lambda t: intrin(t, "_mm_min_epu32")),
+	'pmovsxbw':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepi8_epi16")),
+	'pmovsxbd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepi8_epi32")),
+	'pmovsxbq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepi8_epi64")),
+	'pmovsxwd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepi16_epi32")),
+	'pmovsxwq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepi16_epi64")),
+	'pmovsxdq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepi32_epi64")),
+	'pmovzxbw':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepu8_epi16")),
+	'pmovzxbd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepu8_epi32")),
+	'pmovzxwd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepu8_epi64")),
+	'pmovzxwd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepu16_epi32")),
+	'pmovzxwq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepu16_epi64")),
+	'pmovzxdq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_cvtepu32_epi64")),
+	'pmuldq':		(InstSet.SSE41, lambda t: intrin(t, "_mm_mul_epi32")),
+	'pmullud':		(InstSet.SSE41, lambda t: intrin(t, "_mm_mullo_epi32")),
+	'ptest':		(InstSet.SSE41, lambda t: intrin(t, "_mm_test?_si128")),
+	'roundpd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_" + rounding[int(t[2])] + "_pd")),
+	'roundps':		(InstSet.SSE41, lambda t: intrin(t, "_mm_" + rounding[int(t[2])] + "_ps")),
+	'roundsd':		(InstSet.SSE41, lambda t: intrin(t, "_mm_" + rounding[int(t[2])] + "_sd")),
+	'roundss':		(InstSet.SSE41, lambda t: intrin(t, "_mm_" + rounding[int(t[2])] + "_ss")),
 }
 
 def op2intrin(op,params,instr):
+	op = op.replace('//','#')
+	params = params.replace('//','#')
 	if op == '#':
 		op = ''
 		params = '#' + params
@@ -413,13 +497,13 @@ def op2intrin(op,params,instr):
 			if instType in instr:
 				instr[instType] += 1 
 			else:
-			   instr[instType] = 1
+				instr[instType] = 1
 			return ops[op][1](t) + "\t" + comment
 		elif not (":" in op or op.startswith("#") or op.startswith("//")):
 			if 0 in instr:
 				instr[0] += 1 
-			else:
-			   instr[0] = 1
+			else:				
+				instr[0] = 1
 			return "// unsupported: " + op + " " + ", ".join(t) + comment
 		else:
 			return op + " " + comment
@@ -444,7 +528,10 @@ def asm2intrin(assembler, dstFile):
 		 InstSet.SSE2I : 'SSE2I',
 		 InstSet.SSE3 : 'SSE3',
 		 InstSet.SSSE3 : 'SSSE3',
-		 InstSet.SSE4 : 'SSE4'}
+		 InstSet.SSE4 : 'SSE4',
+		 InstSet.SSE4A : 'SSE4A',
+		 InstSet.SSE41 : 'SSE4.1',
+		 InstSet.SSE42 : 'SSE4.2'}
 	for i in instr:
 		print(dict[i] + ": " + str(instr[i]))
 
