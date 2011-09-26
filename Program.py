@@ -464,7 +464,10 @@ ops = {
 	'roundss':		(InstSet.SSE41, lambda t: intrin(t, "_mm_" + rounding[int(t[2])] + "_ss")),
 }
 
+variables = dict()
+
 def op2intrin(op,params,instr):
+	global variables
 	op = op.replace('//','#')
 	params = params.replace('//','#')
 	if op == '#':
@@ -482,23 +485,46 @@ def op2intrin(op,params,instr):
 	if len(op) > 0:
 		if op in ops:
 			#unroll params
+			var = None
 			if op != 'lea': #cheat
 				for i,p in enumerate(t):
 					if re.search(r"\s*\[.*\]\s*", p):
 						val = p.strip()[1:-1].split('+',1)
+						if i == 0:
+							var = val.split('\W',1)[0].strip()
 						p = "((char*)"+val[0].strip()+")"
 						if len(val) > 1:
 							p += "["+val[1].strip()+"]";
-					t[i] = p
+						t[i] = p
+					else:
+						if i == 0:
+							var = t[0].split('\W',1)[0].strip()
 			else:	# remove []
 				t[1] = t[1].strip()[1:-1]
+				var = t[0].split('\W',1).strip()
 			#update statistic
 			instType = ops[op][0]
 			if instType in instr:
 				instr[instType] += 1 
 			else:
 				instr[instType] = 1
-			return ops[op][1](t) + "\t" + comment
+			#add variable declaration
+			decl = ''
+			if var:
+				if not (var in variables):
+					if isXMMreg(var):
+						if instType == InstSet.SSE2I:
+							decl = '_m128i '
+						elif instType == InstSet.SSE2:
+							decl = '_m128d '
+						else:
+							decl = '_m128 '
+					else:
+						decl = 'int '
+					variables[var] = 1
+				else:
+					variables[var] += 1
+			return decl +ops[op][1](t) + "\t" + comment
 		elif not (":" in op or op.startswith("#") or op.startswith("//")):
 			if 0 in instr:
 				instr[0] += 1 
