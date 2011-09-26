@@ -5,6 +5,7 @@ import argparse
 import re
 
 intelSyntax = True
+variableSet = False
 
 def isreg(reg):
 	return reg in ["eax", "ebx", "ecx", "edx", "esi", "edi", "ebp" ]
@@ -17,6 +18,8 @@ def isXMMreg(reg):
 
 def getValue(t, v):
 	if v:
+		global variableSet
+		variableSet = v[1] != 4
 		return {
 			0: t[0] + " = " + v[0] + "(" + t[1] + ");",
 			1: t[0] + " = " + v[0] + "(" + t[0] + ");",
@@ -67,7 +70,10 @@ def intrin(t, v, i = 0, addResult = True):
 		str += ");"
 	else:
 		throw
+	global variableSet
+	variableSet = addResult
 	if addResult:
+		variableSet = v[1] != 4
 		return t[0] + " = " + str
 	else:
 		return str
@@ -115,6 +121,7 @@ rounding = {
 ops = {		
 	'mov':			(InstSet.x86, lambda t: t[0] + " = " + t[1] + ";"),
 	'movzx':		(InstSet.x86, lambda t: t[0] + " = *((char*)" + t[1] + ");"),
+	'lea':			(InstSet.x86, lambda t: t[0] + " = " + t[1] + ";"),
 	'inc':			(InstSet.x86, lambda t: t[0] + "++;"),
 	'dec':			(InstSet.x86, lambda t: t[0] + "--;"),
 	'imul':			(InstSet.x86, lambda t: t[0] + " *= " + t[1] + ";"),
@@ -127,7 +134,6 @@ ops = {
 	'xor':			(InstSet.x86, lambda t: t[0] + " ^= " + t[1] + ";" if t[0] != t[1] else t[0] + " = 0;"),
 	'shr':			(InstSet.x86, lambda t: t[0] + " >>= " + t[1] + ";" if not t[1].isdigit() or int(t[1])>5 else t[0] + " /= " + str(2 ** int(t[1])) + ";"),
 	'shl':			(InstSet.x86, lambda t: t[0] + " <<= " + t[1] + ";" if not t[1].isdigit() or int(t[1])>5 else t[0] + " *= " + str(2 ** int(t[1])) + ";"),
-	'lea':			(InstSet.x86, lambda t: t[0] + " = " + t[1] + ";"),
 	'loop':			(InstSet.x86, lambda t: "ecx--;\n} while (ecx > 0); // start at " + t[0] + ":"),
 
 	#sse (http://msdn.microsoft.com/en-us/library/t467de55.aspx)
@@ -486,6 +492,8 @@ def op2intrin(op,params,instr):
 		if op in ops:
 			#unroll params
 			var = None
+			global variableSet
+			variableSet = False
 			if op != 'lea': #cheat
 				for i,p in enumerate(t):
 					if re.search(r"\s*\[.*\]\s*", p):
@@ -496,10 +504,11 @@ def op2intrin(op,params,instr):
 						if len(val) > 1:
 							p += "["+val[1].strip()+"]";
 						t[i] = p
-					else:
-						if i == 0:
-							var = t[0].split('\W',1)[0].strip()
+					elif i == 0:
+						var = t[0].split('\W',1)[0].strip()
+				variableSet = op.startswith('mov')
 			else:	# remove []
+				variableSet = True
 				t[1] = t[1].strip()[1:-1]
 				var = t[0].split('\W',1).strip()
 			#update statistic
@@ -508,23 +517,26 @@ def op2intrin(op,params,instr):
 				instr[instType] += 1 
 			else:
 				instr[instType] = 1
+			#execute
+			currentOp = ops[op][1](t)
 			#add variable declaration
 			decl = ''
 			if var:
 				if not (var in variables):
-					if isXMMreg(var):
-						if instType == InstSet.SSE2I:
-							decl = '_m128i '
-						elif instType == InstSet.SSE2:
-							decl = '_m128d '
+					if variableSet:
+						if isXMMreg(var):
+							if instType == InstSet.SSE2I:
+								decl = '_m128i '
+							elif instType == InstSet.SSE2:
+								decl = '_m128d '
+							else:
+								decl = '_m128 '
 						else:
-							decl = '_m128 '
-					else:
-						decl = 'int '
+							decl = 'int '
 					variables[var] = 1
 				else:
 					variables[var] += 1
-			return decl +ops[op][1](t) + "\t" + comment
+			return decl + currentOp + "\t" + comment
 		elif not (":" in op or op.startswith("#") or op.startswith("//")):
 			if 0 in instr:
 				instr[0] += 1 
