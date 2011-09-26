@@ -134,7 +134,7 @@ ops = {
 	'xor':			(InstSet.x86, lambda t: t[0] + " ^= " + t[1] + ";" if t[0] != t[1] else t[0] + " = 0;"),
 	'shr':			(InstSet.x86, lambda t: t[0] + " >>= " + t[1] + ";" if not t[1].isdigit() or int(t[1])>5 else t[0] + " /= " + str(2 ** int(t[1])) + ";"),
 	'shl':			(InstSet.x86, lambda t: t[0] + " <<= " + t[1] + ";" if not t[1].isdigit() or int(t[1])>5 else t[0] + " *= " + str(2 ** int(t[1])) + ";"),
-	'loop':			(InstSet.x86, lambda t: "ecx--;\n} while (ecx > 0); // start at " + t[0] + ":"),
+	'loop':			(InstSet.x86, lambda t: "ecx--; } while (ecx > 0); // start at " + t[0] + ":"),
 
 	#sse (http://msdn.microsoft.com/en-us/library/t467de55.aspx)
 	'movss':		(InstSet.SSE, lambda t: sseIntrin(t, ("_mm_load_ss",0), ("_mm_store_ss",4), ("_mm_move_ss",2), None)),
@@ -472,7 +472,7 @@ ops = {
 
 variables = dict()
 
-def op2intrin(op,params,instr):
+def op2intrin(spaces,op,params,instr):
 	global variables
 	op = op.replace('//','#')
 	params = params.replace('//','#')
@@ -526,36 +526,40 @@ def op2intrin(op,params,instr):
 					if variableSet:
 						if isXMMreg(var):
 							if instType == InstSet.SSE2I:
-								decl = '_m128i '
+								decl = '__m128i '
 							elif instType == InstSet.SSE2:
-								decl = '_m128d '
+								decl = '__m128d '
 							else:
-								decl = '_m128 '
+								decl = '__m128 '
 						else:
 							decl = 'int '
 					variables[var] = 1
 				else:
 					variables[var] += 1
-			return decl + currentOp + "\t" + comment
+			if comment:
+				comment = "\t" + comment
+			return spaces + decl + currentOp + comment
 		elif not (":" in op or op.startswith("#") or op.startswith("//")):
 			if 0 in instr:
 				instr[0] += 1 
 			else:				
 				instr[0] = 1
-			return "// unsupported: " + op + " " + ", ".join(t) + comment
+			return spaces + "// unsupported: " + op + " " + ", ".join(t) + comment
 		else:
-			return op + " " + comment
+			return spaces + op + " " + comment
 	else:
-		return comment
+		return spaces + comment
 
 def asm2intrin(assembler, dstFile):
 	lines = assembler.split('\n')
 	instr = {}
 	for line in lines:
+		p = re.search('^\s+',line)
+		spaces = p.group() if p else ''
 		tokens = line.split(None,1)
 		if len(tokens):
 			params = tokens[1] if len(tokens) > 1 else ''
-			dstFile.write(op2intrin(tokens[0],params,instr) + '\n')
+			dstFile.write(op2intrin(spaces,tokens[0],params,instr) + '\n')
 		else:
 			dstFile.write(line + '\n')
 	print('\nInstructions statistic:')
