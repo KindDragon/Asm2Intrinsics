@@ -499,7 +499,7 @@ def op2intrin(spaces,op,params,instr):
 					if re.search(r"\s*\[.*\]\s*", p):
 						val = p.strip()[1:-1].split('+',1)
 						if i == 0:
-							var = val.split('\W',1)[0].strip()
+							var = val[0].split('\W',1)[0].strip()
 						p = "((char*)"+val[0].strip()+")"
 						if len(val) > 1:
 							p += "["+val[1].strip()+"]";
@@ -510,7 +510,7 @@ def op2intrin(spaces,op,params,instr):
 			else:	# remove []
 				variableSet = True
 				t[1] = t[1].strip()[1:-1]
-				var = t[0].split('\W',1).strip()
+				var = t[0].split('\W',1)[0].strip()
 			#update statistic
 			instType = ops[op][0]
 			if instType in instr:
